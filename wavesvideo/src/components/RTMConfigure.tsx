@@ -18,6 +18,8 @@ import {messageStoreInterface} from './ChatContext';
 import {Platform} from 'react-native';
 import {backOff} from 'exponential-backoff';
 
+import {PollContext} from './PollContext';
+
 export enum mType {
   Control = '0',
   Normal = '1',
@@ -43,6 +45,8 @@ const RtmConfigure = (props: any) => {
       return [...m, {ts: ts, uid: uid, msg: text}];
     });
   };
+
+  const {setQuestion, setAnswers, setIsModalOpen} = useContext(PollContext);
 
   const addMessageToPrivateStore = (
     uid: string,
@@ -205,6 +209,12 @@ const RtmConfigure = (props: any) => {
             text.slice(1) === controlMessageEnum.cloudRecordingUnactive
           ) {
             setRecordingActive(false);
+          } else if (text[1] === controlMessageEnum.initiatePoll) {
+            const {question, answers} = JSON.parse(text.slice(2));
+
+            setQuestion(question);
+            setAnswers(answers);
+            setIsModalOpen(true);
           }
         } else if (text[0] === mType.Normal) {
           addMessageToStore(uid, text, ts);
@@ -304,11 +314,18 @@ const RtmConfigure = (props: any) => {
       addMessageToPrivateStore(uid, mType.Normal + msg, ts, true);
     }
   };
-  const sendControlMessage = async (msg: string) => {
-    await (engine.current as RtmEngine).sendMessageByChannelId(
-      rtcProps.channel,
-      mType.Control + msg,
-    );
+  const sendControlMessage = async (msg: string, obj: object) => {
+    if (msg === '8') {
+      await (engine.current as RtmEngine).sendMessageByChannelId(
+        rtcProps.channel,
+        mType.Control + msg + JSON.stringify(obj),
+      );
+    } else {
+      await (engine.current as RtmEngine).sendMessageByChannelId(
+        rtcProps.channel,
+        mType.Control + msg,
+      );
+    }
   };
   const sendControlMessageToUid = async (msg: string, uid: number) => {
     let adjustedUID = uid;
